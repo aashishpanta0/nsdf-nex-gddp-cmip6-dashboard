@@ -1,5 +1,3 @@
-##  ‼️DO NOT MAKE THIS REPO PUBLIC!!! ‼️☠️
-
 
 ## Windows PIP installation
 
