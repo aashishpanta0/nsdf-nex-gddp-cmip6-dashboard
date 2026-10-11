@@ -2,7 +2,7 @@
 
 Docker packaging of the NEX-GDDP-CMIP6 Panel dashboard. The image is published
 to `ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard` on every push to `main`
-(tag `latest`, plus a `sha-<commit>` tag per build).
+(tag `latest`).
 
 For local (non-Docker) installation, notebooks, and other dashboards, see the
 original [openvisuspy](https://github.com/sci-visus/openvisuspy) repository.
