@@ -1,18 +1,20 @@
-# NSDF NEX-GDDP-CMIP6 Dashboard: run `docker compose up -d`, then open http://localhost:12347/
-# Every setting is optional; see "Configuration" in the README.
+# NSDF NEX-GDDP-CMIP6 Dashboard: run `docker compose up -d`, then open http://localhost:12347/nex-gddp-cmip6
 services:
-  nsdf-nex-gddp-cmip6:
+  nex-gddp-cmip6:
     image: ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
     platform: linux/amd64
     restart: unless-stopped
     ports:
-      - "12347:8080"
-    environment:
-      BOKEH_ALLOW_WS_ORIGIN: "*"  # on a server, set to the public hostname
-      # DATASET: /data/my-dataset/visus.idx
+      - "12347:12347"
+    command:
+      - --address
+      - "0.0.0.0"
+      - --port
+      - "12347"
+      - --args
+      - "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
     volumes:
       - cache:/var/cache/visus
-      # - ./data:/data:ro
 
 volumes:
   cache:
