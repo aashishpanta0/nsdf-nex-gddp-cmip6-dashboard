@@ -40,6 +40,10 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          # Push a plain image manifest (no attestation index) so ARM hosts can
+          # pull it and run it under amd64 emulation without --platform.
+          provenance: false
+          sbom: false
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
