@@ -12,7 +12,7 @@ you do not need to clone this repository or install Python.
 | Image | `ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard` ([package page](https://github.com/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard/pkgs/container/nsdf-nex-gddp-cmip6-dashboard)) |
 | Tags | `latest` (newest build of `main`) and `X.Y.Z` (releases) |
 | Platform | `linux/amd64` (runs under emulation on Apple Silicon and other ARM hosts) |
-| Port | `12347`, passed at run time |
+| Port | `12347` |
 | Dashboard URL | `http://<host>:12347/nex-gddp-cmip6` |
 
 ## Run with Docker
@@ -20,28 +20,42 @@ you do not need to clone this repository or install Python.
 You need [Docker](https://docs.docker.com/get-docker/).
 
 ```bash
-docker run -d --name nsdf-nex-gddp-cmip6 -p 12347:12347 \
-  ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest \
-  --address 0.0.0.0 --port 12347 --args 'https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6'
+docker run -d --name nex-gddp-cmip6 -p 12347:12347 ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
 ```
 
 Open <http://localhost:12347/nex-gddp-cmip6>. The first load can take a minute while
-data is fetched. Stop and remove it with `docker rm -f nsdf-nex-gddp-cmip6`.
+data is fetched. Stop and remove it with `docker rm -f nex-gddp-cmip6`.
 
-### How the container starts
+## Defaults and how to change them
 
-The image runs `python -m panel serve nex-gddp-cmip6`, and everything after the image
-name is appended to that command. The image does not fix an address or port, so
-pass them every time:
+The image saves a default for everything, so it runs with no arguments. Pass
+only what you want to change; everything else keeps its default.
 
-| Argument | Meaning |
-| --- | --- |
-| `--address 0.0.0.0` | Listen on all interfaces, so traffic from outside the container reaches the server |
-| `--port 12347` | Port to listen on; publish the same one with `-p 12347:12347`. Without it, Panel uses `5006` |
-| `--args <dataset>` | Dataset to open; must come last. With no arguments at all, the image opens the `nex-gddp-cmip6` dataset on atlantis |
+| Setting | Default | Change it with |
+| --- | --- | --- |
+| Address | `0.0.0.0` | `--address <ip>`, or `-e ADDRESS=<ip>` |
+| Port | `12347` | `--port <port>`, or `-e PORT=<port>` |
+| Dataset | `https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6` | `--args <dataset>`, the dataset as the first argument, or `-e DATASET=<dataset>` |
 
-Other [`panel serve` options](https://panel.holoviz.org/how_to/server/commandline.html)
-go before `--args`, for example `--num-procs 4` or `--prefix /nex-gddp-cmip6`.
+Arguments go after the image name. For example, to serve on port 9000 (publish
+the same port with `-p`):
+
+```bash
+docker run -d --name nex-gddp-cmip6 -p 9000:9000 ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest --port 9000
+```
+
+A dataset can be an OpenVisus `.idx` URL or path, or a JSON scene list. For local
+files, mount their directory at `/data`:
+
+```bash
+docker run -d --name nex-gddp-cmip6 -p 12347:12347 \
+  -v /path/to/datasets:/data:ro \
+  ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest \
+  --args /data/my-dataset/visus.idx
+```
+
+Any other [`panel serve` option](https://panel.holoviz.org/how_to/server/commandline.html)
+is passed through, e.g. `--num-procs 4` or `--prefix /nex-gddp-cmip6`.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
@@ -62,13 +76,8 @@ services:
     restart: unless-stopped
     ports:
       - "12347:12347"
-    command:
-      - --address
-      - "0.0.0.0"
-      - --port
-      - "12347"
-      - --args
-      - "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
+    # Defaults are saved in the image. To override one, e.g. the dataset:
+    # command: ["--args", "/data/my-dataset/visus.idx"]
     volumes:
       - cache:/var/cache/visus
 
@@ -96,13 +105,8 @@ spec:
       containers:
         - name: nex-gddp-cmip6
           image: ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
-          args:
-            - --address
-            - "0.0.0.0"
-            - --port
-            - "12347"
-            - --args
-            - "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
+          # Defaults are saved in the image; override any of them with args, e.g.
+          # args: ["--port", "12347", "--args", "/data/my-dataset/visus.idx"]
           ports:
             - containerPort: 12347
 ---
@@ -126,26 +130,13 @@ spec:
   one pod.
 - Add probes as you need, e.g. a `tcpSocket` probe on port `12347`.
 
-## Use your own dataset
-
-Pass it after `--args`. For local files, mount their directory at `/data`:
-
-```bash
-docker run -d --name nsdf-nex-gddp-cmip6 -p 12347:12347 \
-  -v /path/to/datasets:/data:ro \
-  ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest \
-  --address 0.0.0.0 --port 12347 --args /data/my-dataset/visus.idx
-```
-
-`--args` accepts an OpenVisus `.idx` URL or path, or a JSON scene list.
-
 ## Update to the newest image
 
 Docker keeps using the image already on your machine, so pull first:
 
 ```bash
 docker pull ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
-docker rm -f nsdf-nex-gddp-cmip6
+docker rm -f nex-gddp-cmip6
 ```
 
 Then run the same `docker run` command again. With Compose, run
@@ -154,8 +145,9 @@ of `latest`, use one of the version tags on the [package page](https://github.co
 
 ## Troubleshooting
 
-- **Nothing answers on port 12347**: pass `--address 0.0.0.0 --port 12347`
-  and publish the same port with `-p`. `docker logs nsdf-nex-gddp-cmip6` should show
+- **Nothing answers on the port**: the port in `-p` must match the port the
+  dashboard listens on (`12347` unless you passed `--port`).
+  `docker logs nex-gddp-cmip6` shows it, e.g.
   `Bokeh app running at: http://0.0.0.0:12347/nex-gddp-cmip6`.
 - **Warning: `requested image's platform (linux/amd64) does not match`**:
   harmless on Apple Silicon and other ARM machines. OpenVisus has no Linux ARM
@@ -170,9 +162,9 @@ of `latest`, use one of the version tags on the [package page](https://github.co
 ## For maintainers
 
 [`.github/workflows/docker.yml`](.github/workflows/docker.yml) builds the image,
-starts it with `--address 0.0.0.0 --port 5006` and the default dataset, loads
-the dashboard page, and fails if the dashboard logs an error. Only then is the
-image published:
+starts it twice (with no arguments, and with only `--port`), loads the dashboard
+page each time, and fails if the dashboard logs an error. Only then is the image
+published:
 
 | Event | Published tags |
 | --- | --- |
@@ -189,9 +181,11 @@ To build and run it locally:
 
 ```bash
 docker build --platform linux/amd64 -t nsdf-nex-gddp-cmip6-dashboard .
-docker run --rm -p 12347:12347 nsdf-nex-gddp-cmip6-dashboard --address 0.0.0.0 --port 12347 --args 'https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6'
+docker run --rm -p 12347:12347 nsdf-nex-gddp-cmip6-dashboard
 ```
 
-The image runs this repository's own copy of openvisuspy (from [aashishpanta0/openvpy-cmip6-public](https://github.com/aashishpanta0/openvpy-cmip6-public), branch `main`); the
-dashboard itself is in [`src/openvisuspy/dashboards/`](src/openvisuspy/dashboards). For notebooks, local Python installs, and
-other dashboards, see [openvisuspy](https://github.com/sci-visus/openvisuspy).
+The defaults live in the `ENV` block of the [`Dockerfile`](Dockerfile), and
+[`docker-entrypoint.sh`](docker-entrypoint.sh) fills them in. The image runs this
+repository's own copy of openvisuspy (from [aashishpanta0/openvpy-cmip6-public](https://github.com/aashishpanta0/openvpy-cmip6-public), branch `main`); the dashboard itself is
+in [`src/openvisuspy/dashboards/`](src/openvisuspy/dashboards). For notebooks, local Python installs, and other dashboards, see
+[openvisuspy](https://github.com/sci-visus/openvisuspy).

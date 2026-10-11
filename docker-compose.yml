@@ -6,13 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "12347:12347"
-    command:
-      - --address
-      - "0.0.0.0"
-      - --port
-      - "12347"
-      - --args
-      - "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
+    # Defaults are saved in the image. To override one, e.g. the dataset:
+    # command: ["--args", "/data/my-dataset/visus.idx"]
     volumes:
       - cache:/var/cache/visus
 
