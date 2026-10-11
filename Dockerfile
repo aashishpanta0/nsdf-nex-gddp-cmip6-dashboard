@@ -1,42 +1,44 @@
+# NSDF NEX-GDDP-CMIP6 Dashboard (ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard).
+# Runtime defaults are the ENV values below; README.md documents how to run it.
+
 FROM python:3.12-slim-bookworm AS builder
 
-# Only the packages the Panel dashboard needs at runtime (see src/openvisuspy);
-# the ipywidgets stack backs pn.extension("ipywidgets") in dashboards/main.py.
-# Binary wheels only, so no compiler toolchain is needed in either stage.
+# OpenVisus publishes Linux wheels for x86_64 only, so the image is linux/amd64.
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/python -m pip install --no-cache-dir --no-warn-script-location --only-binary=:all: \
         panel bokeh param numpy colorcet requests xmltodict httpx nest_asyncio \
         ipywidgets ipywidgets-bokeh ipykernel OpenVisusNoGui \
-    && /opt/venv/bin/python -m pip uninstall -y pip \
-    && find /opt/venv -depth -type d -name __pycache__ -exec rm -rf {} +
+    && /opt/venv/bin/python -m pip uninstall -y pip
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm
 
-# Listen address and port are supplied at runtime (see docker-compose.yml).
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/opt/openvpy/src \
     PATH=/opt/venv/bin:$PATH \
-    BOKEH_ALLOW_WS_ORIGIN=* \
-    VISUS_CACHE=/var/cache/visus
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    PYTHONPATH=/opt/dashboard/src \
+    VISUS_CACHE=/var/cache/visus \
+    DASHBOARD_APP=/opt/dashboard/nex-gddp-cmip6 \
+    DATASET="https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6" \
+    PORT=8080 \
+    BOKEH_ALLOW_WS_ORIGIN=*
 
 COPY --from=builder /opt/venv /opt/venv
-COPY src /opt/openvpy/src
+COPY src /opt/dashboard/src
+COPY src/openvisuspy/dashboards /opt/dashboard/nex-gddp-cmip6
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN python -c "import OpenVisus, openvisuspy, panel.io.ipywidget" \
-    && test -f /opt/openvpy/src/openvisuspy/dashboards/main.py
-
-RUN useradd --create-home --uid 10001 dashboard \
-    && ln -s /opt/openvpy/src/openvisuspy/dashboards /opt/openvpy/nex-gddp-cmip6 \
-    && mkdir -p /var/cache/visus \
+# Fail the build early if the dashboard cannot be imported.
+RUN python -c "import OpenVisus, openvisuspy, panel" \
+    && test -f "$DASHBOARD_APP/main.py" \
+    && useradd --create-home --uid 10001 dashboard \
+    && mkdir -p /var/cache/visus /data \
     && chown dashboard:dashboard /var/cache/visus
 
-WORKDIR /opt/openvpy
+WORKDIR /opt/dashboard
 USER dashboard
+EXPOSE 8080
 
-ENTRYPOINT ["python", "-m", "panel", "serve", "nex-gddp-cmip6"]
-CMD ["--args", "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/liveness' % os.environ['PORT'], timeout=4)"
+
+ENTRYPOINT ["docker-entrypoint.sh"]

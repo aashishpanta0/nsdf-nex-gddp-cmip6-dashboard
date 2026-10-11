@@ -1,115 +1,192 @@
 # NSDF NEX-GDDP-CMIP6 Dashboard
 
-Docker packaging of the NEX-GDDP-CMIP6 Panel dashboard. The image is published
-to `ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard` on every push to `main`
-(tag `latest`).
+Interactive dashboard for the NASA NEX-GDDP-CMIP6 downscaled climate projections,
+streamed with [OpenVisus](https://github.com/sci-visus/OpenVisus) from the NSDF
+atlantis server.
 
-For local (non-Docker) installation, notebooks, and other dashboards, see the
-original [openvisuspy](https://github.com/sci-visus/openvisuspy) repository.
+The dashboard ships as a ready-to-run Docker image. You do not need to clone
+this repository or install Python; everything below uses the published image.
 
-## Requirements
+| | |
+| --- | --- |
+| Image | `ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard` ([package page](https://github.com/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard/pkgs/container/nsdf-nex-gddp-cmip6-dashboard)) |
+| Tags | `latest` (newest build of `main`) and `X.Y.Z` (releases) |
+| Platform | `linux/amd64` (runs under emulation on Apple Silicon and other ARM hosts) |
+| Container port | `8080` |
+| Dashboard URL | `http://<host>:<port>/` (redirects to `/nex-gddp-cmip6`) |
 
-- Docker with Compose v2 (`docker compose version`)
-- Git
-- Works on x86_64 and ARM (Apple Silicon included). The image is built for
-  amd64; Docker Desktop runs it on ARM automatically. On ARM Linux without
-  Docker Desktop, enable amd64 emulation once:
-  `docker run --privileged --rm tonistiigi/binfmt --install amd64`
+## Quick start
 
-## Run the published image (recommended)
+You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop or Docker Engine).
 
-1. Clone the repository:
-
-   ```sh
-   git clone https://github.com/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard.git
-   cd nsdf-nex-gddp-cmip6-dashboard
-   ```
-
-2. Create your local settings file (edit it if you need a different port):
-
-   ```sh
-   cp .env.example .env
-   ```
-
-3. Pull the latest image:
-
-   ```sh
-   docker compose pull
-   ```
-
-4. Start the dashboard in the background:
-
-   ```sh
-   docker compose up -d
-   ```
-
-5. Open <http://localhost:12347/nex-gddp-cmip6> in your browser.
-
-6. Stop it when you are done:
-
-   ```sh
-   docker compose down
-   ```
-
-### Update to a newer image
-
-Compose keeps using the image it already has, so pull before restarting:
-
-```sh
-docker compose pull
-docker compose up -d
+```bash
+docker run -d --name nsdf-nex-gddp-cmip6 -p 12347:8080 ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
 ```
 
-## Build the image yourself
+Open <http://localhost:12347/>. The first load can take a minute while data is fetched.
 
-Follow steps 1–2 above, then:
+When you are done, stop and remove it with `docker rm -f nsdf-nex-gddp-cmip6`.
 
-```sh
-docker compose up --build -d
+## Deploy on a server
+
+Both options restart the dashboard automatically and keep downloaded data in a
+named volume.
+
+### Option A: `docker run`
+
+```bash
+docker run -d --name nsdf-nex-gddp-cmip6 --restart unless-stopped \
+  -p 12347:8080 \
+  -v nsdf-nex-gddp-cmip6-cache:/var/cache/visus \
+  ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
 ```
 
-This builds from the local `Dockerfile` and tags the result as
-`NEX_GDDP_CMIP6_IMAGE`. Run `docker compose pull` later to switch back to the
-published image.
+### Option B: Docker Compose
 
-## Check on it
+Save this as `docker-compose.yml` (the same file is in this repository), then run
+`docker compose up -d`:
 
-```sh
-docker compose ps            # is it running, and on which port
-docker compose logs -f       # follow the logs (Ctrl+C to stop following)
-docker compose config        # the resolved ports and command
+```yaml
+# NSDF NEX-GDDP-CMIP6 Dashboard: run `docker compose up -d`, then open http://localhost:12347/
+# Every setting is optional; see "Configuration" in the README.
+services:
+  nsdf-nex-gddp-cmip6:
+    image: ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "12347:8080"
+    environment:
+      BOKEH_ALLOW_WS_ORIGIN: "*"  # on a server, set to the public hostname
+      # DATASET: /data/my-dataset/visus.idx
+    volumes:
+      - cache:/var/cache/visus
+      # - ./data:/data:ro
+
+volumes:
+  cache:
 ```
 
-## Configuration (`.env`)
+Either way the dashboard is at `http://<server>:12347/`. To serve it under a
+hostname, see [Behind a reverse proxy](#behind-a-reverse-proxy).
 
-| Variable | Default | Purpose |
+## Configuration
+
+The image has working defaults for everything. To change one, add
+`-e NAME=value` to `docker run`, or set it under `environment:` in Compose.
+
+| Variable | Default | Description |
 | --- | --- | --- |
-| `NEX_GDDP_CMIP6_PORT` | `12347` | Host port and in-container listen port (same number) |
-| `NEX_GDDP_CMIP6_BIND_ADDRESS` | `127.0.0.1` | Host interface to publish on; `0.0.0.0` exposes it on the network |
-| `NEX_GDDP_CMIP6_LISTEN_ADDRESS` | `0.0.0.0` | In-container listen address; keep `0.0.0.0` |
-| `NEX_GDDP_CMIP6_ALLOW_WS_ORIGIN` | `*` | Allowed WebSocket origin(s); set to your hostname in production |
-| `NEX_GDDP_CMIP6_DATASET` | atlantis `nex-gddp-cmip6` | Dataset URL passed to the dashboard |
-| `NEX_GDDP_CMIP6_IMAGE` | GHCR `:latest` | Image to pull, or tag for local builds |
-| `NEX_GDDP_CMIP6_PLATFORM` | `linux/amd64` | Image platform |
+| `DATASET` | `https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6` | What the dashboard opens: an OpenVisus `.idx` URL or path, or a JSON scene list |
+| `BOKEH_ALLOW_WS_ORIGIN` | `*` (any) | Host name(s) browsers use to reach the dashboard, comma-separated, e.g. `dashboards.example.org`. Set this on public servers |
+| `PORT` | `8080` | Port the server listens on inside the container. Change it only with `--network host` |
 
-After changing `.env`, apply it with `docker compose up -d`. For example, setting
-`NEX_GDDP_CMIP6_PORT=8080` serves the dashboard at
-<http://localhost:8080/nex-gddp-cmip6>.
+| Container path | Purpose |
+| --- | --- |
+| `/var/cache/visus` | Cache of downloaded data. Mount a named volume to keep it across restarts |
+| `/data` | Empty mount point for your own datasets |
 
-The dashboard keeps a data cache in a Docker volume. To remove it as well:
-`docker compose down --volumes`.
+Arguments after the image name are passed to
+[`panel serve`](https://panel.holoviz.org/how_to/server/commandline.html), for
+example `--num-procs 4` or `--prefix /dashboards`.
 
-## Docker without Compose
+### Use your own dataset
 
-```sh
-docker pull ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
-docker run --rm -p 127.0.0.1:12347:12347 \
-    ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest \
-    --address 0.0.0.0 --port 12347 \
-    --args "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
+Mount the directory that holds it at `/data` and point `DATASET` at it:
+
+```bash
+docker run -d --name nsdf-nex-gddp-cmip6 -p 12347:8080 \
+  -v /path/to/datasets:/data:ro \
+  -e DATASET=/data/my-dataset/visus.idx \
+  ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
 ```
 
-Then open <http://localhost:12347/nex-gddp-cmip6>; press Ctrl+C to stop.
+A remote dataset needs no mount: `-e DATASET='https://example.org/path/visus.idx'`.
 
-On ARM, Docker may print a platform-mismatch warning (`linux/amd64` vs
-`linux/arm64`); it is harmless.
+### Behind a reverse proxy
+
+The dashboard uses WebSockets, so the proxy must forward the upgrade headers.
+With nginx:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:12347;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 1h;
+}
+```
+
+Publish the port on localhost only (`-p 127.0.0.1:12347:8080`) so the dashboard
+is reachable only through the proxy, and set
+`-e BOKEH_ALLOW_WS_ORIGIN=<your hostname>`.
+
+## Manage a running dashboard
+
+| Task | `docker run` | Docker Compose |
+| --- | --- | --- |
+| Follow logs | `docker logs -f nsdf-nex-gddp-cmip6` | `docker compose logs -f` |
+| Status and health | `docker ps -f name=nsdf-nex-gddp-cmip6` | `docker compose ps` |
+| Stop and remove | `docker rm -f nsdf-nex-gddp-cmip6` | `docker compose down` |
+| Delete the data cache | `docker volume rm nsdf-nex-gddp-cmip6-cache` | `docker compose down --volumes` |
+
+### Update to the newest image
+
+Docker keeps using the image already on your machine, so pull first:
+
+```bash
+docker pull ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
+docker rm -f nsdf-nex-gddp-cmip6
+```
+
+Then start it again with the same `docker run` command. With Compose, run
+`docker compose pull && docker compose up -d`.
+
+To stay on a fixed release instead of `latest`, use one of the version tags
+listed on the [package page](https://github.com/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard/pkgs/container/nsdf-nex-gddp-cmip6-dashboard), e.g. `:1.0.0`.
+
+## Troubleshooting
+
+- **Warning: `requested image's platform (linux/amd64) does not match`**:
+  harmless on Apple Silicon and other ARM machines. OpenVisus has no Linux ARM
+  build, so the image runs under emulation, which is slower. Add
+  `--platform linux/amd64` to hide the warning. On ARM Linux without Docker
+  Desktop, enable emulation once with
+  `docker run --privileged --rm tonistiigi/binfmt --install amd64`.
+- **Port already in use**: change the left-hand number of `-p`, e.g.
+  `-p 9000:8080`, then open `http://localhost:9000/`.
+- **Page loads but stays blank**: the browser's WebSocket connection is being
+  refused. Behind a proxy, check the upgrade headers above and that
+  `BOKEH_ALLOW_WS_ORIGIN` matches the hostname in the address bar.
+- **Still running an old version**: `docker run` does not fetch a newer
+  `latest` by itself; follow [Update to the newest image](#update-to-the-newest-image).
+
+## For maintainers
+
+[`.github/workflows/docker.yml`](.github/workflows/docker.yml) builds the image,
+starts it, loads the dashboard page, and fails if the dashboard logs an error.
+Only then is the image published:
+
+| Event | Published tags |
+| --- | --- |
+| Push to `main` | `latest` |
+| Push a `vX.Y.Z` tag | `X.Y.Z` |
+| Pull request | none (build and test only) |
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+To build and run it locally:
+
+```bash
+docker build --platform linux/amd64 -t nsdf-nex-gddp-cmip6-dashboard .
+docker run --rm -p 12347:8080 nsdf-nex-gddp-cmip6-dashboard
+```
+
+The image runs this repository's own copy of openvisuspy (from [aashishpanta0/openvpy-cmip6-public](https://github.com/aashishpanta0/openvpy-cmip6-public), branch `main`); the
+dashboard itself is in [`src/openvisuspy/dashboards/`](src/openvisuspy/dashboards). For notebooks, local Python installs, and
+other dashboards, see [openvisuspy](https://github.com/sci-visus/openvisuspy).
