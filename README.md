@@ -1,3 +1,44 @@
+# NSDF NEX-GDDP-CMIP6 Dashboard
+
+Self-contained dashboard: source code, `Dockerfile`, `docker-compose.yml`, and a
+GitHub Actions workflow (`.github/workflows/docker.yml`) that publishes
+`ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard` on pushes to `main` and on `v*` tags.
+
+## Run with Docker Compose
+
+```sh
+cp .env.example .env      # then edit .env
+docker compose up --build -d          # build the image locally and start
+# or, to run the published package instead of building:
+docker compose pull && docker compose up -d
+```
+
+Inspect with `docker compose ps`, `docker compose logs -f`, and
+`docker compose config` (shows the resolved ports and command).
+
+Open <http://localhost:12347/nex-gddp-cmip6>. Stop with `docker compose down`
+(add `--volumes` to drop the cache).
+
+`NEX_GDDP_CMIP6_PORT` sets both the published host port and the port Panel
+listens on inside the container. `NEX_GDDP_CMIP6_BIND_ADDRESS` (default
+`127.0.0.1`) is the host interface it is published on; the in-container listen
+address stays `0.0.0.0`. Neither is baked into the image.
+
+Image selection: `docker compose up --build` always builds locally and tags the
+result as `NEX_GDDP_CMIP6_IMAGE`. Without `--build`, Compose reuses that tag if it
+exists locally, otherwise pulls it from the registry, and builds locally only if
+the pull fails. Use `docker compose pull` to refresh from the registry.
+
+## Run with Docker only
+
+```sh
+docker build --platform linux/amd64 -t nsdf-nex-gddp-cmip6-dashboard .
+docker run --rm -p 127.0.0.1:12347:12347 nsdf-nex-gddp-cmip6-dashboard \
+    --address 0.0.0.0 --port 12347 --args <dataset>
+```
+
+---
+
 
 ## Windows PIP installation
 

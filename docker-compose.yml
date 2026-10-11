@@ -1,0 +1,25 @@
+services:
+  nex-gddp-cmip6:
+    platform: ${NEX_GDDP_CMIP6_PLATFORM:-linux/amd64}
+    build: .
+    image: ${NEX_GDDP_CMIP6_IMAGE:-ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest}
+    init: true
+    restart: unless-stopped
+    # NEX_GDDP_CMIP6_PORT is both the published host port and the in-container listener.
+    ports:
+      - "${NEX_GDDP_CMIP6_BIND_ADDRESS:-127.0.0.1}:${NEX_GDDP_CMIP6_PORT:-12347}:${NEX_GDDP_CMIP6_PORT:-12347}"
+    environment:
+      BOKEH_ALLOW_WS_ORIGIN: "${NEX_GDDP_CMIP6_ALLOW_WS_ORIGIN:-*}"
+      VISUS_CACHE: /var/cache/visus
+    command:
+      - --address
+      - "${NEX_GDDP_CMIP6_LISTEN_ADDRESS:-0.0.0.0}"
+      - --port
+      - "${NEX_GDDP_CMIP6_PORT:-12347}"
+      - --args
+      - "${NEX_GDDP_CMIP6_DATASET:-https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6}"
+    volumes:
+      - nex-gddp-cmip6-cache:/var/cache/visus
+
+volumes:
+  nex-gddp-cmip6-cache:
