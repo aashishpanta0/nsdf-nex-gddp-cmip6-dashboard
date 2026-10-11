@@ -11,6 +11,10 @@ original [openvisuspy](https://github.com/sci-visus/openvisuspy) repository.
 
 - Docker with Compose v2 (`docker compose version`)
 - Git
+- An x86_64 (amd64) machine, or an ARM machine that can emulate amd64
+  (Docker Desktop on Apple Silicon/Windows does this automatically; on ARM Linux
+  install QEMU with `docker run --privileged --rm tonistiigi/binfmt --install amd64`).
+  The image is amd64-only because OpenVisus publishes no Linux ARM wheels.
 
 ## Run the published image (recommended)
 
@@ -98,11 +102,17 @@ The dashboard keeps a data cache in a Docker volume. To remove it as well:
 ## Docker without Compose
 
 ```sh
-docker pull ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
-docker run --rm -p 127.0.0.1:12347:12347 \
+docker pull --platform linux/amd64 ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
+docker run --rm --platform linux/amd64 -p 127.0.0.1:12347:12347 \
     ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest \
     --address 0.0.0.0 --port 12347 \
     --args "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
 ```
 
 Then open <http://localhost:12347/nex-gddp-cmip6>; press Ctrl+C to stop.
+
+## Troubleshooting
+
+- `no matching manifest for linux/arm64 ... not found` (or "latest not found")
+  on an ARM machine: add `--platform linux/amd64` to `docker pull`/`docker run`.
+  Compose already does this via `NEX_GDDP_CMIP6_PLATFORM`.
