@@ -1,13 +1,19 @@
-# NSDF NEX-GDDP-CMIP6 Dashboard: run `docker compose up -d`, then open http://localhost:12347/nex-gddp-cmip6
 services:
   nex-gddp-cmip6:
-    image: ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard:latest
+    image: nasa-nex
+    container_name: nasa-nex
     platform: linux/amd64
     restart: unless-stopped
+    env_file: ".env"
     ports:
-      - "12347:12347"
+      - "127.0.0.1:8080:8080"
     # Defaults are saved in the image. To override one, e.g. the dataset:
-    # command: ["--args", "/data/my-dataset/visus.idx"]
+    command:
+      [
+        "--args",
+        "https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6",
+      ]
+
     volumes:
       - cache:/var/cache/visus
 

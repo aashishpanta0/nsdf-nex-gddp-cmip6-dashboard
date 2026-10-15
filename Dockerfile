@@ -1,6 +1,4 @@
 # NSDF NEX-GDDP-CMIP6 Dashboard, served as "nex-gddp-cmip6" (ghcr.io/aashishpanta0/nsdf-nex-gddp-cmip6-dashboard).
-# Defaults (address, port 12347, dataset) are saved below, so the image runs
-# with no arguments; each one can be overridden at run time (see README.md).
 
 # Build stage: install the Python dependencies into a virtualenv.
 FROM python:3.12-slim-bookworm AS build
@@ -21,11 +19,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/opt/venv/bin:$PATH \
     PYTHONPATH=/opt/openvisuspy/src \
-    BOKEH_ALLOW_WS_ORIGIN=* \
     VISUS_CACHE=/var/cache/visus \
     DASHBOARD_APP=/opt/openvisuspy/nex-gddp-cmip6 \
-    ADDRESS=0.0.0.0 \
-    PORT=12347 \
     DATASET="https://atlantis.sci.utah.edu/mod_visus?dataset=nex-gddp-cmip6"
 
 COPY --from=build /opt/venv /opt/venv
@@ -44,6 +39,5 @@ RUN python -c "import OpenVisus, openvisuspy" \
 
 WORKDIR /opt/openvisuspy
 USER dashboard
-EXPOSE 12347
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["python", "-m", "panel", "serve", "nex-gddp-cmip6"]
