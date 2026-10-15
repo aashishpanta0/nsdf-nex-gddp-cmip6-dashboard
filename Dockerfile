@@ -26,7 +26,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY --from=build /opt/venv /opt/venv
 COPY src /opt/openvisuspy/src
 COPY src/openvisuspy/dashboards /opt/openvisuspy/nex-gddp-cmip6
-COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # The cache is writable by any user, since Kubernetes may run the container
 # under an arbitrary UID.
